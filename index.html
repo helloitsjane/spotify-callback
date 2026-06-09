@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spotify Like — Setup</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #121212;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 40px 24px;
+      text-align: center;
+    }
+    .logo { font-size: 56px; margin-bottom: 16px; }
+    h1 { font-size: 1.5rem; color: #1DB954; margin-bottom: 8px; }
+    .status {
+      font-size: 1.1rem;
+      color: #b3b3b3;
+      margin: 24px 0;
+      line-height: 1.5;
+    }
+    .status.error   { color: #ff4444; }
+    .status.success { color: #1DB954; }
+    .btn {
+      display: inline-block;
+      background: #1DB954;
+      color: #000;
+      font-weight: 700;
+      font-size: 1rem;
+      padding: 14px 32px;
+      border-radius: 32px;
+      text-decoration: none;
+      margin-top: 16px;
+    }
+    .note {
+      font-size: 0.8rem;
+      color: #535353;
+      margin-top: 40px;
+      max-width: 400px;
+    }
+  </style>
+</head>
+<body>
+  <div class="logo">🎵</div>
+  <h1>Spotify Like — Setup</h1>
+  <p class="status" id="status">Starting authorization…</p>
+
+  <script>
+    // ─── EDIT THESE TWO LINES ─────────────────────────────────────────────────
+    const CLIENT_ID   = "YOUR_CLIENT_ID_HERE";
+    const REDIRECT_URI = "https://YOUR_GITHUB_USERNAME.github.io/spotify-callback/";
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // Must match the filename of your Scriptable setup script (without .js)
+    const SCRIPT_NAME = "Spotify Like Setup";
+
+    const SCOPES = "user-read-currently-playing user-library-modify";
+
+    const params = new URLSearchParams(window.location.search);
+    const code   = params.get("code");
+    const state  = params.get("state");   // carries the PKCE verifier back to us
+    const error  = params.get("error");
+
+    (async () => {
+      // ── Error from Spotify ──────────────────────────────────────────────────
+      if (error) {
+        setStatus(`❌ Spotify returned an error: ${error}`, "error");
+        return;
+      }
+
+      // ── Callback from Spotify — hand code + verifier back to Scriptable ─────
+      if (code && state) {
+        const verifier = state;
+        const payload  = code + "|" + verifier;
+        const url = `scriptable:///run?scriptName=${encodeURIComponent(SCRIPT_NAME)}`
+                  + `&input=${encodeURIComponent(payload)}`;
+
+        setStatus("✅ Authorized! Returning to Scriptable…", "success");
+        addButton("Open Scriptable", url);
+        window.location.href = url;
+        return;
+      }
+
+      // ── First visit — generate PKCE values and redirect to Spotify ──────────
+      const verifier  = generateVerifier();
+      const challenge = await computeChallenge(verifier);
+
+      const authURL = "https://accounts.spotify.com/authorize?" + new URLSearchParams({
+        client_id:             CLIENT_ID,
+        response_type:         "code",
+        redirect_uri:          REDIRECT_URI,
+        scope:                 SCOPES,
+        code_challenge_method: "S256",
+        code_challenge:        challenge,
+        state:                 verifier,   // thread the verifier through the flow
+      });
+
+      setStatus("Redirecting to Spotify login…");
+      window.location.href = authURL;
+    })();
+
+    // ── Helpers ────────────────────────────────────────────────────────────────
+
+    /** 48 random bytes → base64url, 64 chars, no padding */
+    function generateVerifier() {
+      const buf = new Uint8Array(48);
+      crypto.getRandomValues(buf);
+      return btoa(String.fromCharCode(...buf))
+        .replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+    }
+
+    /** SHA-256(verifier) → base64url */
+    async function computeChallenge(verifier) {
+      const data   = new TextEncoder().encode(verifier);
+      const digest = await crypto.subtle.digest("SHA-256", data);
+      return btoa(String.fromCharCode(...new Uint8Array(digest)))
+        .replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+    }
+
+    function setStatus(msg, cls = "") {
+      const el = document.getElementById("status");
+      el.textContent = msg;
+      el.className = "status " + cls;
+    }
+
+    function addButton(label, href) {
+      const a = document.createElement("a");
+      a.href = href;
+      a.className = "btn";
+      a.textContent = label;
+      document.body.appendChild(a);
+    }
+  </script>
+
+  <p class="note">
+    This page is only used during the one-time setup of your Scriptable scripts.
+    It never stores your Spotify credentials — all tokens are saved to your
+    device's encrypted Keychain by Scriptable.
+  </p>
+</body>
+</html>
