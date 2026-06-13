@@ -96,10 +96,11 @@
         client_id:             CLIENT_ID,
         response_type:         "code",
         redirect_uri:          REDIRECT_URI,
-        scope:                 SCOPES,
+        scope:                 scope,
         code_challenge_method: "S256",
         code_challenge:        challenge,
         state:                 verifier,   // thread the verifier through the flow
+        show_dialog:           "true",     // force consent screen on re-auth
       });
 
       setStatus("Redirecting to Spotify login…");
