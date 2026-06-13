@@ -54,28 +54,42 @@
 
   <script>
     // ─── EDIT THESE TWO LINES ─────────────────────────────────────────────────
-    const CLIENT_ID   = "9c21463eb29c407d86d7264558b92f0e";
+    const CLIENT_ID    = "9c21463eb29c407d86d7264558b92f0e";
     const REDIRECT_URI = "https://helloitsjane.github.io/spotify-callback/";
     // ─────────────────────────────────────────────────────────────────────────
 
-    // Must match the filename of your Scriptable setup script (without .js)
     const SCRIPT_NAME = "Spotify Like Setup";
 
-    const scope = "user-read-currently-playing user-library-modify playlist-read-private playlist-read-collaborative playlist-modify-public playlist-modify-private";
+    const scope = [
+      "user-read-currently-playing",
+      "user-library-modify",
+      "playlist-read-private",
+      "playlist-read-collaborative",
+      "playlist-modify-public",
+      "playlist-modify-private",
+    ].join(" ");
 
     const params = new URLSearchParams(window.location.search);
     const code   = params.get("code");
-    const state  = params.get("state");   // carries the PKCE verifier back to us
+    const state  = params.get("state");
     const error  = params.get("error");
 
+    // Catch and display any JS error rather than silently swallowing it
     (async () => {
-      // ── Error from Spotify ──────────────────────────────────────────────────
+      try {
+        await run();
+      } catch (e) {
+        setStatus(`❌ JS error: ${e.name}: ${e.message}`, "error");
+      }
+    })();
+
+    async function run() {
       if (error) {
         setStatus(`❌ Spotify returned an error: ${error}`, "error");
         return;
       }
 
-      // ── Callback from Spotify — hand code + verifier back to Scriptable ─────
+      // Callback from Spotify — hand code + verifier back to Scriptable
       if (code && state) {
         const verifier = state;
         const payload  = code + "|" + verifier;
@@ -88,7 +102,8 @@
         return;
       }
 
-      // ── First visit — generate PKCE values and redirect to Spotify ──────────
+      // First visit — generate PKCE values and redirect to Spotify
+      setStatus("Generating PKCE challenge…");
       const verifier  = generateVerifier();
       const challenge = await computeChallenge(verifier);
 
@@ -99,17 +114,16 @@
         scope:                 scope,
         code_challenge_method: "S256",
         code_challenge:        challenge,
-        state:                 verifier,   // thread the verifier through the flow
-        show_dialog:           "true",     // force consent screen on re-auth
+        state:                 verifier,
+        show_dialog:           "true",
       });
 
       setStatus("Redirecting to Spotify login…");
       window.location.href = authURL;
-    })();
+    }
 
-    // ── Helpers ────────────────────────────────────────────────────────────────
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
-    /** 48 random bytes → base64url, 64 chars, no padding */
     function generateVerifier() {
       const buf = new Uint8Array(48);
       crypto.getRandomValues(buf);
@@ -117,7 +131,6 @@
         .replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
     }
 
-    /** SHA-256(verifier) → base64url */
     async function computeChallenge(verifier) {
       const data   = new TextEncoder().encode(verifier);
       const digest = await crypto.subtle.digest("SHA-256", data);
