@@ -61,7 +61,7 @@
     // Must match the filename of your Scriptable setup script (without .js)
     const SCRIPT_NAME = "Spotify Like Setup";
 
-    const SCOPES = "user-read-currently-playing user-library-modify";
+    const scope = "user-read-currently-playing user-library-modify playlist-read-private playlist-read-collaborative playlist-modify-public playlist-modify-private";
 
     const params = new URLSearchParams(window.location.search);
     const code   = params.get("code");
