@@ -60,15 +60,15 @@
 
     const SCRIPT_NAME = "Spotify Like Setup";
 
-    const scope = [
-      "user-read-currently-playing",
-      "user-library-modify",
-      "user-library-read",
-      "playlist-read-private",
-      "playlist-read-collaborative",
-      "playlist-modify-public",
-      "playlist-modify-private",
-    ].join(" ");
+  const scope = [
+    "user-read-currently-playing",
+    "user-library-read",
+    "user-library-modify",
+    "playlist-read-private",
+    "playlist-read-collaborative",
+    "playlist-modify-public",
+    "playlist-modify-private",
+  ].join(" ");
 
     const params = new URLSearchParams(window.location.search);
     const code   = params.get("code");
